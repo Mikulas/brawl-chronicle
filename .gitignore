@@ -1,0 +1,11 @@
+# Binaries
+/mtg-tracker
+
+# Cached bulk data
+data/oracle-cards.json
+data/unique-artwork.json
+data/default-cards.json
+
+# OS
+.DS_Store
+Thumbs.db
