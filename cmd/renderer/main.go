@@ -9,6 +9,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	text_template "text/template" // Use text/template for RSS generation to avoid HTML escaping
 	"time"
 )
 
@@ -447,21 +448,21 @@ func generateRSS(history HistoryData, cardLookup map[string]Card, outputDir stri
 <rss version="2.0" xmlns:content="http://purl.org/rss/1.0/modules/content/">
 	<channel>
 		<title>Brawl Chronicle</title>
-		<link>https://your-site.github.io/</link>
+		<link>https://mikulas.github.io/brawl-chronicle/</link>
 		<description>Daily tracking of new Magic: The Gathering cards legal in Brawl format</description>
 		<language>en-us</language>
 		<lastBuildDate>{{.LastUpdate}}</lastBuildDate>
 		{{range .Days}}{{if or .FirstRun (gt (len .Cards) 0)}}
 		<item>
 			<title>{{if .FirstRun}}Initial Collection - {{thousands .TotalCards}} cards{{else}}{{thousands (len .Cards)}} new cards on {{.Date}}{{end}}</title>
-			<link>https://your-site.github.io/#{{.Date}}</link>
-			<guid>https://your-site.github.io/#{{.Date}}</guid>
+			<link>https://mikulas.github.io/brawl-chronicle/#{{.Date}}</link>
+			<guid>https://mikulas.github.io/brawl-chronicle/#{{.Date}}</guid>
 			<pubDate>{{.PubDate}}</pubDate>
 			<description><![CDATA[
 				{{if .FirstRun}}
 				Initial data collection - {{thousands .TotalCards}} Brawl-legal cards in database
 				{{else}}
-				{{range .Cards}}{{if .ImageURL}}<p><strong>{{.Name}}</strong><br><img src="{{.ImageURL}}" alt="{{.Name}}" style="max-width:200px;"></p>{{end}}{{end}}
+				{{range .Cards}}{{if .ImageURL}}<p><strong>{{.Name}}</strong><br/><img src="{{.ImageURL}}" alt="{{.Name}}" style="max-width:200px;"/></p>{{end}}{{end}}
 				{{end}}
 			]]></description>
 		</item>
@@ -469,12 +470,12 @@ func generateRSS(history HistoryData, cardLookup map[string]Card, outputDir stri
 	</channel>
 </rss>`
 
-	// Create template with custom functions
-	funcMap := template.FuncMap{
+	// Create template with custom functions using text/template for proper XML output
+	textFuncMap := text_template.FuncMap{
 		"thousands": addThousandsSeparator,
 	}
 	
-	t, err := template.New("rss").Funcs(funcMap).Parse(rssTemplate)
+	t, err := text_template.New("rss").Funcs(textFuncMap).Parse(rssTemplate)
 	if err != nil {
 		return err
 	}
@@ -517,5 +518,6 @@ func generateRSS(history HistoryData, cardLookup map[string]Card, outputDir stri
 	}
 	defer file.Close()
 
+	// Execute template and write raw XML (text/template doesn't escape HTML)
 	return t.Execute(file, rssData)
 }
