@@ -10,8 +10,6 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
-      pages: write
-      id-token: write
     
     steps:
     - name: Checkout
@@ -38,20 +36,9 @@ jobs:
         if [ -n "$(git status --porcelain)" ]; then
           git add data/history.json
           git add docs/index.html
+          git add docs/feed.xml
           git commit -m "Update card data - $(date -u +%Y-%m-%d)"
           git push
         else
           echo "No changes to commit"
         fi
-    
-    - name: Setup Pages
-      uses: actions/configure-pages@v3
-      
-    - name: Upload artifact
-      uses: actions/upload-pages-artifact@v2
-      with:
-        path: docs
-      
-    - name: Deploy to GitHub Pages
-      id: deployment
-      uses: actions/deploy-pages@v2
