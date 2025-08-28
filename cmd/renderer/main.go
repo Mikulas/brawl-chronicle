@@ -164,11 +164,21 @@ func generateHTML(history HistoryData, cardLookup map[string]Card, outputDir str
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Brawl Chronicle</title>
     <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="alternate" type="application/rss+xml" title="Brawl Chronicle RSS Feed" href="feed.xml">
 </head>
 <body>
     <div class="header">
         <h1>Brawl Chronicle</h1>
         <p>Daily tracking of new Magic: The Gathering cards legal in Brawl format</p>
+        <div class="links">
+            <a href="feed.xml" title="RSS Feed" class="header-link">
+                <i class="fas fa-rss"></i> RSS Feed
+            </a>
+            <a href="https://github.com/Mikulas/brawl-chronicle" target="_blank" title="GitHub Project" class="header-link">
+                <i class="fab fa-github"></i> GitHub
+            </a>
+        </div>
         {{if .Days}}
         <div class="last-updated">Last updated: {{(index .Days 0).Date}}</div>
         {{end}}
