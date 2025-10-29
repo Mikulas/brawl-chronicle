@@ -14112,6 +14112,15 @@
       "total_cards": 13596,
       "first_run": false,
       "added_cards": null
+    },
+    {
+      "date": "2025-10-29",
+      "added_oracles": [
+        "995b4d53-8932-4739-a77d-2a1cae3f02ad"
+      ],
+      "total_cards": 13594,
+      "first_run": false,
+      "added_cards": null
     }
   ]
 }
