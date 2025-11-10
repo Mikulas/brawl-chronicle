@@ -14198,6 +14198,16 @@
       "total_cards": 13594,
       "first_run": false,
       "added_cards": null
+    },
+    {
+      "date": "2025-11-10",
+      "added_oracles": [
+        "127de52b-df75-4342-95a0-20d84c5bf916",
+        "27e27681-9221-4e64-8c78-e153a86bc6e0"
+      ],
+      "total_cards": 13596,
+      "first_run": false,
+      "added_cards": null
     }
   ]
 }
