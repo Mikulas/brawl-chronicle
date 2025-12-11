@@ -14909,6 +14909,25 @@
       "total_cards": 14075,
       "first_run": false,
       "added_cards": null
+    },
+    {
+      "date": "2025-12-11",
+      "added_oracles": [
+        "a800bec4-bacc-43f9-a773-dd795959935b",
+        "d6cba688-faff-4d9f-8148-37d389fa5fb3",
+        "70dd5013-f18f-4501-882f-70590c424e20",
+        "81ba75af-eddc-4344-befb-419ebfb855a3",
+        "acdcbb49-9d71-4c36-8ccb-650fb11c3a58",
+        "969fa9b9-161f-461e-8878-9ebcff5a2669",
+        "f18cce8c-8fb6-49a7-8f79-2529c0ee3ecc",
+        "634475d9-a1d7-4146-9a37-645d3d162af1",
+        "83f776d9-f3b6-40c2-8008-1ace4d110825",
+        "29cf1dc2-3a6a-4a8b-8d61-4b6f0e74f271",
+        "fbd37284-35ff-4409-b6d5-f813c06c4931"
+      ],
+      "total_cards": 14086,
+      "first_run": false,
+      "added_cards": null
     }
   ]
 }
