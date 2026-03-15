@@ -16080,6 +16080,44 @@
       "total_cards": 14580,
       "first_run": false,
       "added_cards": null
+    },
+    {
+      "date": "2026-03-15",
+      "added_oracles": [
+        "fdcb016e-36e7-46b3-9dff-20b9b9cc421d",
+        "efc12acf-ffef-40a6-b2ce-fe93e89ad840",
+        "4900c157-8d9f-4f92-aaca-5246b6e2832e",
+        "ccab4509-f189-4610-9597-547e7f6b0775",
+        "46ea8d02-b087-44f7-8403-93ffc1d3a8ad",
+        "cae166de-e681-40a0-83a8-3c17cf40e2fc",
+        "62e7e7b1-9887-4d15-b0e5-a8ddc711bd88",
+        "f349f58b-8cc8-45e4-9565-2b46fdf976c9",
+        "9f2f12cc-0adb-482d-bbce-05e4ce8850c4",
+        "8d857d79-bdb2-4ca3-abd6-7db8f6b3bcfa",
+        "22008c3b-6e15-41cc-a15c-7871495191aa",
+        "026ef98e-4f0a-4a6d-b74f-d17ac8b10e37",
+        "94551fbd-a72c-4a1f-be01-7ba1c7c03eed",
+        "da359f85-7a11-4575-848d-642d1ae0ddbb",
+        "506a972d-d226-44dc-95b7-a6e7a63d76cd",
+        "ee82947d-1cf0-4c53-84d4-81f81c6201ee",
+        "f11e914c-16bc-4836-bc14-bc1b5de9cd87",
+        "1ba2f763-5895-4663-b38f-95591ebb2ef4",
+        "913e6182-706a-4872-8c8a-e146b0ae0738",
+        "466d5226-f4c7-4d69-9f56-4f893010127f",
+        "deda54da-4fcc-4da3-9337-7768a2db3283",
+        "59a405d7-2f28-41b8-a5bb-011f45a5fdf2",
+        "12401ad1-b5c9-43dc-9389-04aaf5db8b26",
+        "5c8e5092-962e-49ef-ab82-8434e475e4e7",
+        "1e9679e8-bef1-495c-8251-0d87d971e32a",
+        "206913aa-4d73-4465-8311-8054a22c0743",
+        "ab9ff8e9-0ffa-4ccf-a4bf-8505079616f6",
+        "9cc69ea5-42a2-4306-ac6d-cff5adb20bcb",
+        "9aace0d3-89e6-4254-b96f-ee3a878f2f91",
+        "10991b1a-7dd3-4fbf-a4c8-200dc62fc605"
+      ],
+      "total_cards": 14610,
+      "first_run": false,
+      "added_cards": null
     }
   ]
 }
