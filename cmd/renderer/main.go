@@ -36,7 +36,7 @@ type DayResult struct {
 	CardMapping  map[string]string `json:"card_mapping"`
 	TotalCards   int               `json:"total_cards"`
 	FirstRun     bool              `json:"first_run"`
-	
+
 	// Legacy support for old format
 	AddedCards []string `json:"added_cards"`
 }
@@ -92,7 +92,7 @@ func main() {
 
 	// Create card lookup map with Arena preference
 	cardLookup := make(map[string]Card)
-	
+
 	// Group cards by ID and prefer Arena versions
 	for _, card := range artworkCards {
 		existing, exists := cardLookup[card.ID]
@@ -151,6 +151,9 @@ func loadOracleCards(filename string) ([]Card, error) {
 func generateHTML(history HistoryData, cardLookup map[string]Card, outputDir string) error {
 	// Convert to display format
 	displayData := convertToDisplayData(history, cardLookup)
+	if err := validateCardImages(displayData); err != nil {
+		return err
+	}
 
 	// Sort days in reverse chronological order (newest first)
 	sort.Slice(displayData.Days, func(i, j int) bool {
@@ -231,7 +234,7 @@ func generateHTML(history HistoryData, cardLookup map[string]Card, outputDir str
 	funcMap := template.FuncMap{
 		"thousands": addThousandsSeparator,
 	}
-	
+
 	t, err := template.New("index").Funcs(funcMap).Parse(tmpl)
 	if err != nil {
 		return err
@@ -246,17 +249,38 @@ func generateHTML(history HistoryData, cardLookup map[string]Card, outputDir str
 	return t.Execute(file, displayData)
 }
 
+func validateCardImages(displayData DisplayData) error {
+	cardCount := 0
+	imageCount := 0
+	for _, day := range displayData.Days {
+		if day.FirstRun {
+			continue
+		}
+		for _, card := range day.Cards {
+			cardCount++
+			if card.ImageURL != "" {
+				imageCount++
+			}
+		}
+	}
+
+	if cardCount > 0 && imageCount == 0 {
+		return fmt.Errorf("refusing to render %d cards without any image URLs", cardCount)
+	}
+	return nil
+}
+
 func convertToDisplayData(history HistoryData, cardLookup map[string]Card) DisplayData {
 	var displayDays []DisplayDay
 
 	for _, day := range history.Days {
 		var cards []DisplayCard
-		
+
 		// Only process individual cards if it's NOT a first run
 		if !day.FirstRun {
 			// Handle both new oracle format and legacy format
 			var cardIDs []string
-			
+
 			if day.AddedOracles != nil {
 				// New oracle-based format: select best card for each oracle_id
 				for _, oracleID := range day.AddedOracles {
@@ -268,7 +292,7 @@ func convertToDisplayData(history HistoryData, cardLookup map[string]Card) Displ
 				// Legacy format: use AddedCards directly
 				cardIDs = day.AddedCards
 			}
-			
+
 			// Convert IDs to full card data
 			for _, id := range cardIDs {
 				if card, exists := cardLookup[id]; exists {
@@ -283,10 +307,10 @@ func convertToDisplayData(history HistoryData, cardLookup map[string]Card) Displ
 							imageURL = url
 						}
 					}
-					
+
 					// Build Scryfall URL
 					scryfallURL := fmt.Sprintf("https://scryfall.com/card/%s", card.ID)
-					
+
 					cards = append(cards, DisplayCard{
 						ID:          card.ID,
 						Name:        card.Name,
@@ -330,7 +354,7 @@ func getColorOrder(colors []string) int {
 	if len(colors) > 1 {
 		return 5 // Multicolor
 	}
-	
+
 	// Single color in WUBRG order
 	switch colors[0] {
 	case "W":
@@ -353,16 +377,16 @@ func compareCardsWizardsStyle(a, b DisplayCard) bool {
 	// First, compare by color order
 	colorOrderA := getColorOrder(a.Colors)
 	colorOrderB := getColorOrder(b.Colors)
-	
+
 	if colorOrderA != colorOrderB {
 		return colorOrderA < colorOrderB
 	}
-	
+
 	// If same color category, compare by CMC
 	if a.CMC != b.CMC {
 		return a.CMC < b.CMC
 	}
-	
+
 	// If same CMC, compare by name
 	return a.Name < b.Name
 }
@@ -373,7 +397,7 @@ func addThousandsSeparator(n int) string {
 	if len(str) <= 3 {
 		return str
 	}
-	
+
 	var result strings.Builder
 	for i, digit := range str {
 		if i > 0 && (len(str)-i)%3 == 0 {
@@ -397,18 +421,18 @@ func hasArena(games []string) bool {
 // selectBestCard chooses the best card for an oracle_id (prefer Arena, then regular frames)
 func selectBestCard(oracleID string, cardLookup map[string]Card) (Card, bool) {
 	var candidates []Card
-	
+
 	// Find all cards with this oracle_id
 	for _, card := range cardLookup {
 		if card.OracleID == oracleID {
 			candidates = append(candidates, card)
 		}
 	}
-	
+
 	if len(candidates) == 0 {
 		return Card{}, false
 	}
-	
+
 	// Step 1: Filter for Arena versions if available
 	var arenaCards []Card
 	for _, card := range candidates {
@@ -416,39 +440,39 @@ func selectBestCard(oracleID string, cardLookup map[string]Card) (Card, bool) {
 			arenaCards = append(arenaCards, card)
 		}
 	}
-	
+
 	// Use Arena cards if we found any, otherwise use all candidates
 	finalCandidates := candidates
 	if len(arenaCards) > 0 {
 		finalCandidates = arenaCards
 	}
-	
+
 	// Step 2: Prefer regular frames over special printings
 	// Look for cards without "showcase", "borderless", "etched", etc in the ID or special frames
 	var regularFrames []Card
 	for _, card := range finalCandidates {
 		// Simple heuristic: prefer cards that don't have special frame indicators
 		cardID := strings.ToLower(card.ID)
-		if !strings.Contains(cardID, "showcase") && 
-		   !strings.Contains(cardID, "borderless") && 
-		   !strings.Contains(cardID, "etched") &&
-		   !strings.Contains(cardID, "extended") {
+		if !strings.Contains(cardID, "showcase") &&
+			!strings.Contains(cardID, "borderless") &&
+			!strings.Contains(cardID, "etched") &&
+			!strings.Contains(cardID, "extended") {
 			regularFrames = append(regularFrames, card)
 		}
 	}
-	
+
 	// Use regular frames if we found any, otherwise use final candidates
 	if len(regularFrames) > 0 {
 		return regularFrames[0], true
 	}
-	
+
 	return finalCandidates[0], true
 }
 
 func generateRSS(history HistoryData, cardLookup map[string]Card, outputDir string) error {
 	// Convert to display format
 	displayData := convertToDisplayData(history, cardLookup)
-	
+
 	// Sort days in reverse chronological order (newest first)
 	sort.Slice(displayData.Days, func(i, j int) bool {
 		return displayData.Days[i].Date > displayData.Days[j].Date
@@ -484,7 +508,7 @@ func generateRSS(history HistoryData, cardLookup map[string]Card, outputDir stri
 	textFuncMap := text_template.FuncMap{
 		"thousands": addThousandsSeparator,
 	}
-	
+
 	t, err := text_template.New("rss").Funcs(textFuncMap).Parse(rssTemplate)
 	if err != nil {
 		return err
@@ -495,12 +519,12 @@ func generateRSS(history HistoryData, cardLookup map[string]Card, outputDir stri
 		DisplayDay
 		PubDate string
 	}
-	
+
 	type RSSData struct {
 		Days       []RSSDay
 		LastUpdate string
 	}
-	
+
 	var rssDays []RSSDay
 	for _, day := range displayData.Days {
 		// Convert date to RFC2822 format for RSS
@@ -508,13 +532,13 @@ func generateRSS(history HistoryData, cardLookup map[string]Card, outputDir stri
 		if err != nil {
 			date = time.Now() // fallback
 		}
-		
+
 		rssDays = append(rssDays, RSSDay{
 			DisplayDay: day,
 			PubDate:    date.Format(time.RFC1123Z),
 		})
 	}
-	
+
 	rssData := RSSData{
 		Days:       rssDays,
 		LastUpdate: time.Now().Format(time.RFC1123Z),

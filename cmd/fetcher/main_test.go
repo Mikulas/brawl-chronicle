@@ -1,6 +1,9 @@
 package main
 
 import (
+	"encoding/json"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -62,5 +65,33 @@ func TestDecodeCardsReportsInvalidJSONLRecord(t *testing.T) {
 	_, err := decodeCards(strings.NewReader("{\"id\":\"one\"}\nnot-json\n"), true)
 	if err == nil || !strings.Contains(err.Error(), "JSONL card 2") {
 		t.Fatalf("expected second-record error, got %v", err)
+	}
+}
+
+func TestJSONLCachePreservesRendererFields(t *testing.T) {
+	input := `{"id":"one","oracle_id":"oracle-one","name":"Test Card","cmc":2,"colors":["U"],"image_uris":{"normal":"https://example.com/card.jpg"}}`
+	cards, err := decodeCards(strings.NewReader(input), true)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	cacheFile := filepath.Join(t.TempDir(), "default-cards.json")
+	if err := saveCards(cards, cacheFile); err != nil {
+		t.Fatal(err)
+	}
+
+	data, err := os.ReadFile(cacheFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var cachedCards []Card
+	if err := json.Unmarshal(data, &cachedCards); err != nil {
+		t.Fatal(err)
+	}
+
+	if len(cachedCards) != 1 || cachedCards[0].CMC != 2 ||
+		len(cachedCards[0].Colors) != 1 || cachedCards[0].Colors[0] != "U" ||
+		cachedCards[0].ImageURIs["normal"] != "https://example.com/card.jpg" {
+		t.Fatalf("renderer fields were not preserved: %#v", cachedCards)
 	}
 }

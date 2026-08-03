@@ -33,7 +33,10 @@ type Card struct {
 	ID         string            `json:"id"`
 	OracleID   string            `json:"oracle_id"`
 	Name       string            `json:"name"`
+	CMC        float64           `json:"cmc"`
+	Colors     []string          `json:"colors"`
 	Legalities map[string]string `json:"legalities"`
+	ImageURIs  map[string]string `json:"image_uris"`
 	Games      []string          `json:"games"`
 }
 
