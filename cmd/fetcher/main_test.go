@@ -95,3 +95,16 @@ func TestJSONLCachePreservesRendererFields(t *testing.T) {
 		t.Fatalf("renderer fields were not preserved: %#v", cachedCards)
 	}
 }
+
+func TestFilterCompetitiveBrawlLegalCards(t *testing.T) {
+	cards := []Card{
+		{ID: "competitive", Legalities: map[string]string{"competitivebrawl": "legal", "brawl": "not_legal"}},
+		{ID: "brawl-only", Legalities: map[string]string{"competitivebrawl": "not_legal", "brawl": "legal"}},
+		{ID: "missing", Legalities: map[string]string{"brawl": "legal"}},
+	}
+
+	filtered := filterCompetitiveBrawlLegalCards(cards)
+	if len(filtered) != 1 || filtered[0].ID != "competitive" {
+		t.Fatalf("unexpected Competitive Brawl cards: %#v", filtered)
+	}
+}

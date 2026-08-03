@@ -28,6 +28,12 @@ body {
     font-size: 1.1em;
 }
 
+.header .tracking-note {
+    margin-bottom: 15px;
+    color: #f0f4ff;
+    font-size: 0.9em;
+}
+
 .links {
     margin: 15px 0;
     display: flex;

@@ -115,12 +115,12 @@ func main() {
 		fmt.Printf("Loaded %d cards from cache\n", len(currentCards))
 	}
 
-	// Filter for Brawl-legal cards and build oracle_id mapping
-	brawlCards := filterBrawlLegalCards(currentCards)
-	fmt.Printf("Found %d Brawl-legal cards\n", len(brawlCards))
+	// Filter for Competitive Brawl-legal cards and build oracle_id mapping.
+	competitiveBrawlCards := filterCompetitiveBrawlLegalCards(currentCards)
+	fmt.Printf("Found %d Competitive Brawl-legal cards\n", len(competitiveBrawlCards))
 
 	// Build oracle_id to best card mapping (prefer Arena)
-	oracleToCard := buildOracleMapping(brawlCards)
+	oracleToCard := buildOracleMapping(competitiveBrawlCards)
 	fmt.Printf("Unique oracle cards: %d\n", len(oracleToCard))
 
 	// Load existing history
@@ -459,15 +459,14 @@ func findNewCards(knownCards map[string]bool, currentCards []Card) []Card {
 	return newCards
 }
 
-func filterBrawlLegalCards(cards []Card) []Card {
-	var brawlCards []Card
+func filterCompetitiveBrawlLegalCards(cards []Card) []Card {
+	var competitiveBrawlCards []Card
 
 	for _, card := range cards {
-		// Check if card is legal in brawl
-		if legality, exists := card.Legalities["brawl"]; exists && legality == "legal" {
-			brawlCards = append(brawlCards, card)
+		if legality, exists := card.Legalities["competitivebrawl"]; exists && legality == "legal" {
+			competitiveBrawlCards = append(competitiveBrawlCards, card)
 		}
 	}
 
-	return brawlCards
+	return competitiveBrawlCards
 }
