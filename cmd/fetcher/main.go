@@ -6,17 +6,27 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 )
 
 type BulkDataInfo struct {
-	Data []struct {
-		Type        string `json:"type"`
-		DownloadURI string `json:"download_uri"`
-		UpdatedAt   string `json:"updated_at"`
-	} `json:"data"`
+	Data []BulkDataItem `json:"data"`
+}
+
+type BulkDataItem struct {
+	Type             string `json:"type"`
+	DownloadURI      string `json:"download_uri"`
+	JSONLDownloadURI string `json:"jsonl_download_uri"`
+	UpdatedAt        string `json:"updated_at"`
+}
+
+type BulkDownload struct {
+	URL       string
+	JSONLines bool
 }
 
 type Card struct {
@@ -33,7 +43,7 @@ type DayResult struct {
 	AddedOracles []string `json:"added_oracles"` // oracle_ids of new cards
 	TotalCards   int      `json:"total_cards"`
 	FirstRun     bool     `json:"first_run"`
-	
+
 	// Legacy support for old format
 	AddedCards []string `json:"added_cards"`
 }
@@ -54,7 +64,7 @@ func main() {
 	// Check if we already have default cards cached and if it's fresh (less than 23 hours old)
 	var currentCards []Card
 	shouldDownload := true
-	
+
 	if stat, err := os.Stat(oracleFile); err == nil {
 		// Check if cache is less than 23 hours old
 		cacheAge := time.Since(stat.ModTime())
@@ -65,35 +75,30 @@ func main() {
 			fmt.Printf("Cache is %.1f hours old, refreshing...\n", cacheAge.Hours())
 		}
 	}
-	
+
 	if shouldDownload {
 		// Download and cache default cards
 		fmt.Println("Fetching Scryfall bulk data info...")
-		downloadURL, err := getDownloadURL()
+		download, err := getDownload()
 		if err != nil {
 			fmt.Printf("Error getting download URL: %v\n", err)
 			os.Exit(1)
 		}
 
-		fmt.Printf("Downloading from: %s\n", downloadURL)
-		rawData, err := downloadCards(downloadURL)
+		fmt.Printf("Downloading from: %s\n", download.URL)
+		currentCards, err = downloadCards(download)
 		if err != nil {
 			fmt.Printf("Error downloading cards: %v\n", err)
 			os.Exit(1)
 		}
 
-		// Save raw default cards to disk
+		// Keep the cache as a JSON array regardless of Scryfall's download format.
 		fmt.Println("Saving default cards to cache...")
-		if err := saveRawCards(rawData, oracleFile); err != nil {
+		if err := saveCards(currentCards, oracleFile); err != nil {
 			fmt.Printf("Error saving default cards: %v\n", err)
 			os.Exit(1)
 		}
 
-		// Parse for processing
-		if err := json.Unmarshal(rawData, &currentCards); err != nil {
-			fmt.Printf("Error parsing default cards: %v\n", err)
-			os.Exit(1)
-		}
 		fmt.Printf("Downloaded %d cards\n", len(currentCards))
 	} else {
 		// Load cached default cards
@@ -110,7 +115,7 @@ func main() {
 	// Filter for Brawl-legal cards and build oracle_id mapping
 	brawlCards := filterBrawlLegalCards(currentCards)
 	fmt.Printf("Found %d Brawl-legal cards\n", len(brawlCards))
-	
+
 	// Build oracle_id to best card mapping (prefer Arena)
 	oracleToCard := buildOracleMapping(brawlCards)
 	fmt.Printf("Unique oracle cards: %d\n", len(oracleToCard))
@@ -127,7 +132,7 @@ func main() {
 
 		// On first run, add all current oracle_ids
 		var addedOracles []string
-		
+
 		for oracleID := range oracleToCard {
 			addedOracles = append(addedOracles, oracleID)
 		}
@@ -162,7 +167,7 @@ func main() {
 
 		if shouldAddEntry {
 			var addedOracles []string
-			
+
 			for _, oracleID := range newOracles {
 				addedOracles = append(addedOracles, oracleID)
 			}
@@ -193,42 +198,55 @@ func main() {
 	fmt.Printf("Data updated. History saved to %s\n", historyFile)
 }
 
-func getDownloadURL() (string, error) {
+func getDownload() (BulkDownload, error) {
 	req, err := http.NewRequest("GET", "https://api.scryfall.com/bulk-data", nil)
 	if err != nil {
-		return "", err
+		return BulkDownload{}, err
 	}
 
 	req.Header.Set("User-Agent", "BrawlChronicle/1.0")
 	req.Header.Set("Accept", "application/json;q=0.9,*/*;q=0.8")
 
-	client := &http.Client{}
+	client := &http.Client{Timeout: 30 * time.Second}
 	resp, err := client.Do(req)
 	if err != nil {
-		return "", err
+		return BulkDownload{}, err
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("HTTP %d: %s", resp.StatusCode, resp.Status)
+		return BulkDownload{}, fmt.Errorf("HTTP %d: %s", resp.StatusCode, resp.Status)
 	}
 
 	var bulkInfo BulkDataInfo
 	if err := json.NewDecoder(resp.Body).Decode(&bulkInfo); err != nil {
-		return "", err
+		return BulkDownload{}, err
 	}
+	return findDefaultCardsDownload(bulkInfo)
+}
 
+func findDefaultCardsDownload(bulkInfo BulkDataInfo) (BulkDownload, error) {
 	for _, data := range bulkInfo.Data {
 		if data.Type == "default_cards" {
-			return data.DownloadURI, nil
+			if data.DownloadURI != "" {
+				return BulkDownload{URL: data.DownloadURI}, nil
+			}
+			if data.JSONLDownloadURI != "" {
+				return BulkDownload{URL: data.JSONLDownloadURI, JSONLines: true}, nil
+			}
+			return BulkDownload{}, fmt.Errorf("default_cards has no download URI")
 		}
 	}
 
-	return "", fmt.Errorf("default_cards not found in bulk data")
+	return BulkDownload{}, fmt.Errorf("default_cards not found in bulk data")
 }
 
-func downloadCards(url string) ([]byte, error) {
-	req, err := http.NewRequest("GET", url, nil)
+func downloadCards(download BulkDownload) ([]Card, error) {
+	if strings.TrimSpace(download.URL) == "" {
+		return nil, fmt.Errorf("download URL is empty")
+	}
+
+	req, err := http.NewRequest("GET", download.URL, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -236,32 +254,60 @@ func downloadCards(url string) ([]byte, error) {
 	req.Header.Set("User-Agent", "BrawlChronicle/1.0")
 	req.Header.Set("Accept", "application/json;q=0.9,*/*;q=0.8")
 
-	client := &http.Client{}
+	client := &http.Client{Timeout: 15 * time.Minute}
 	resp, err := client.Do(req)
 	if err != nil {
 		return nil, err
 	}
 	defer resp.Body.Close()
 
-	// Check if content is actually gzipped by looking at Content-Encoding header
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("HTTP %d: %s", resp.StatusCode, resp.Status)
+	}
+
 	var reader io.Reader = resp.Body
-	
-	if resp.Header.Get("Content-Encoding") == "gzip" {
+	if !resp.Uncompressed && isGzipResponse(resp, download.URL) {
 		gzipReader, err := gzip.NewReader(resp.Body)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("opening gzip download: %w", err)
 		}
 		defer gzipReader.Close()
 		reader = gzipReader
 	}
 
-	// Read all data as bytes
-	data, err := io.ReadAll(reader)
-	if err != nil {
-		return nil, err
+	return decodeCards(reader, download.JSONLines)
+}
+
+func isGzipResponse(resp *http.Response, downloadURL string) bool {
+	contentType := strings.ToLower(resp.Header.Get("Content-Type"))
+	contentEncoding := strings.ToLower(resp.Header.Get("Content-Encoding"))
+	parsedURL, err := url.Parse(downloadURL)
+	return contentEncoding == "gzip" || strings.Contains(contentType, "application/gzip") ||
+		(err == nil && strings.HasSuffix(strings.ToLower(parsedURL.Path), ".gz"))
+}
+
+func decodeCards(reader io.Reader, jsonLines bool) ([]Card, error) {
+	decoder := json.NewDecoder(reader)
+	if !jsonLines {
+		var cards []Card
+		if err := decoder.Decode(&cards); err != nil {
+			return nil, fmt.Errorf("decoding card array: %w", err)
+		}
+		return cards, nil
 	}
 
-	return data, nil
+	var cards []Card
+	for {
+		var card Card
+		if err := decoder.Decode(&card); err != nil {
+			if err == io.EOF {
+				break
+			}
+			return nil, fmt.Errorf("decoding JSONL card %d: %w", len(cards)+1, err)
+		}
+		cards = append(cards, card)
+	}
+	return cards, nil
 }
 
 func loadCards(filename string) ([]Card, error) {
@@ -279,8 +325,17 @@ func loadCards(filename string) ([]Card, error) {
 	return cards, nil
 }
 
-func saveRawCards(data []byte, filename string) error {
-	return os.WriteFile(filename, data, 0644)
+func saveCards(cards []Card, filename string) error {
+	file, err := os.Create(filename)
+	if err != nil {
+		return err
+	}
+
+	if err := json.NewEncoder(file).Encode(cards); err != nil {
+		file.Close()
+		return err
+	}
+	return file.Close()
 }
 
 func loadRawCards(filename string) ([]Card, error) {
@@ -296,7 +351,6 @@ func loadRawCards(filename string) ([]Card, error) {
 
 	return cards, nil
 }
-
 
 func loadHistory(filename string) HistoryData {
 	file, err := os.Open(filename)
@@ -332,14 +386,14 @@ func buildKnownCardsFromHistory(history HistoryData) map[string]bool {
 // Build oracle_id to best card mapping (prefer Arena)
 func buildOracleMapping(cards []Card) map[string]Card {
 	oracleToCard := make(map[string]Card)
-	
+
 	for _, card := range cards {
 		existing, exists := oracleToCard[card.OracleID]
 		if !exists || (hasArenaInFetcher(card.Games) && !hasArenaInFetcher(existing.Games)) {
 			oracleToCard[card.OracleID] = card
 		}
 	}
-	
+
 	return oracleToCard
 }
 
@@ -379,13 +433,13 @@ func hasArenaInFetcher(games []string) bool {
 func removeEntryForToday(history HistoryData) HistoryData {
 	today := time.Now().UTC().Format("2006-01-02")
 	var filteredDays []DayResult
-	
+
 	for _, day := range history.Days {
 		if day.Date != today {
 			filteredDays = append(filteredDays, day)
 		}
 	}
-	
+
 	history.Days = filteredDays
 	return history
 }
@@ -404,13 +458,13 @@ func findNewCards(knownCards map[string]bool, currentCards []Card) []Card {
 
 func filterBrawlLegalCards(cards []Card) []Card {
 	var brawlCards []Card
-	
+
 	for _, card := range cards {
 		// Check if card is legal in brawl
 		if legality, exists := card.Legalities["brawl"]; exists && legality == "legal" {
 			brawlCards = append(brawlCards, card)
 		}
 	}
-	
+
 	return brawlCards
 }
