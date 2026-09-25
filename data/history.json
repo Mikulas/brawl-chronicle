@@ -18782,6 +18782,16 @@
       "total_cards": 15751,
       "first_run": false,
       "added_cards": null
+    },
+    {
+      "date": "2026-09-25",
+      "added_oracles": [
+        "78f9c223-9982-4282-a496-a6f892f0a5bf",
+        "10d13ff6-c4d0-4753-8939-a8a90f0e92bb"
+      ],
+      "total_cards": 15753,
+      "first_run": false,
+      "added_cards": null
     }
   ]
 }
